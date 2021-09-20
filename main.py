@@ -919,11 +919,15 @@ for year in years:
     tmp = df_sectors_tot.query(f'TIME=={year}').sort_values(by='Value',ascending=False)
     df_new = df_new.append(tmp.head(howMany))
 
+    if year==2014:
+        avg_2014 = round(np.average(tmp["Value"]),2)
+
 df_new = df_new.sort_values(by=['TIME','Value']).reset_index(drop=True)
 
 fig = px.bar(df_new, x="Value", y="Ateco 2007", text="Value",
     animation_frame="TIME", range_x=[0,df_new['Value'].max()*1.1],
-    color_discrete_sequence=[colors_palette[1]]*howMany)
+    color_discrete_sequence=[colors_palette[1]]*howMany
+)
 
 fig.update_traces(texttemplate='%{text:.2f} ', textposition='inside')
 
@@ -935,30 +939,58 @@ fig.update_layout(
     xaxis=dict(showline=True, showticklabels=True, ticks='outside',
                 linecolor='rgb(204, 204, 204)', linewidth=2, dtick = 5,
                 range = [0, val_x_axis]),
-    yaxis=dict(showgrid=False, showline=False, ticksuffix='  '),
+    yaxis=dict( showgrid=False, showline=False, ticksuffix='  '),
     paper_bgcolor='white',
     plot_bgcolor='white',
     title_font_family=default_font_family,
     font=dict(family=default_font_family,size=12,color="grey"),
     showlegend=False,
-    width=800, height=400
+    width=800, height=400,
+    annotations = [
+        dict(
+            x=avg_2014, y=4.9,
+            text=f"Average<br>{avg_2014}",
+            font=dict(family=default_font_family,size=12,color="grey"),
+            showarrow=False
+        )
+    ],
+    shapes = [
+        dict(
+            type="line",
+            x0=avg_2014, y0=-0.5, x1=avg_2014, y1=4.5,
+            line=dict(color="grey",width=2),
+            opacity=0.5, layer="below"
+        )
+    ]
 )
 fig.update_xaxes(title_font_family=default_font_family)
 fig.update_yaxes(title_font_family=default_font_family)
 
+for step in fig.layout.sliders[0].steps:
+    step["args"][1]["frame"]["redraw"] = True
 
-avg = round(np.average(tmp["Value"]),2)
-fig.add_shape(type="line",
-    x0=avg, y0=-0.5, x1=avg, y1=4.5,
-    line=dict(color="grey",width=2),
-    opacity=0.5, layer="below"
-)
-fig.add_annotation(
-    x=avg, y=4.9,
-    text=f"Average<br>{avg}",
-    font=dict(family=default_font_family,size=12,color="grey"),
-    showarrow=False
-)
+for k in range(len(fig.frames)):
+    tmp = df_sectors_tot.query(f'TIME=={2014+k}')
+    avg = round(np.average(tmp["Value"]),2)
+
+    annotation = [
+        dict(
+            x=avg, y=4.9,
+            text=f"Average<br>{avg}",
+            font=dict(family=default_font_family,size=12,color="grey"),
+            showarrow=False
+        )
+    ]
+    shape = [
+        dict(
+            type="line",
+            x0=avg, y0=-0.5, x1=avg, y1=4.5,
+            line=dict(color="grey",width=2),
+            opacity=0.5, layer="below"
+        )
+    ]
+
+    fig.frames[k]['layout'].update(annotations=annotation,shapes=shape)
 
 fig.layout.updatemenus[0].buttons[0].args[1]['frame']['duration'] = 1000
 
