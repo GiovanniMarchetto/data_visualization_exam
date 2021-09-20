@@ -88,7 +88,7 @@ df['Territorio'] = df['Territorio'].str.replace(' / ','/')
 # rename sectors in english
 it_sec_names = tuple(
     df.query('`Ateco 2007`!="TOTALE" & `ATECO_2007`>="A" & `ATECO_2007`<="Z"')['Ateco 2007'] # Column 'ATECO_2007' has a letter for macro sectors (it is different from 'Ateco 2007'!!
-      .drop_duplicates().sort_values().reset_index(drop=True)
+    .drop_duplicates().sort_values().reset_index(drop=True)
 )
 
 en_sec_names = (
@@ -348,7 +348,7 @@ def categorization(salaryCategoryBorders = range(9,20,2)):
     
     return  df_toReturn
 
-   
+
 def avgSalary(territory='Italia', year=-1):
     '''
     Returns the average salary value in a given territory for a given year (parameters).
@@ -751,14 +751,14 @@ print("Percentage increment of gender gap wrt. 2014: " + str(gapPercentageWrtFir
 print("\n\n## Question 3: What are the most profitable sectors? ##")
 
 df_sectors_tot = df_sectors.query('Sesso=="totale" & `Classe di età`=="totale" &  \
-                                  `Classe di dipendenti`=="totale" & `Qualifica contrattuale`=="totale"')[['Ateco 2007','Ateco 2007 BR','TIME','Value']]
+    `Classe di dipendenti`=="totale" & `Qualifica contrattuale`=="totale"')[['Ateco 2007','Ateco 2007 BR','TIME','Value']]
 
 
 # ### Plot horizontal bar chart for sectors
 
 # In[ ]:
 
-howManyEls=5
+howMany=5
 val_x_axis = max(df_sectors_tot['Value'])
 
 if exportFigure:
@@ -768,86 +768,92 @@ if exportFigure:
     os.makedirs(figureOutputFolder_this)
 
 for year in range(2014,2018,1):
-  tmp = df_sectors_tot.query(f'TIME=={year}').sort_values(by='Value')
-  print(f"\n\tYear {year}: \n\t\t" + "\n\t\t".join( reversed((tmp['Ateco 2007'] + "\t( " + tmp['Value'].astype(str) + " €/h)").tolist()) ) )
+    tmp = df_sectors_tot.query(f'TIME=={year}').sort_values(by='Value')
+    print(f"\n\tYear {year}: \n\t\t" + "\n\t\t".join( reversed((tmp['Ateco 2007'] + "\t( " + tmp['Value'].astype(str) + " €/h)").tolist()) ) )
 
-  fig = px.bar(tmp.tail(howManyEls), x="Value", y="Ateco 2007 BR", text="Value")
+    fig = px.bar(tmp.tail(howMany), x="Value", y="Ateco 2007 BR", text="Value")
 
-  fig.update_traces(
-    texttemplate='%{text:.2f} ', textposition='inside',
-    marker_color= colors_palette[1], opacity=0.8
-  )
+    fig.update_traces(
+        texttemplate='%{text:.2f} ', textposition='inside',
+        marker_color= colors_palette[1], opacity=0.8
+        )
 
-  fig.update_layout(
-    # title_text=f'{year}',
-    yaxis_title=None,
-    xaxis_title="€/h",
-    xaxis=dict(showline=True, showticklabels=True, ticks='outside',
-      linecolor='rgb(204, 204, 204)', linewidth=2, dtick = 5,
-      range = [0, val_x_axis]),
-    yaxis=dict( showgrid=False, showline=False, ticksuffix='  '),
-    paper_bgcolor='white',
-    plot_bgcolor='white',
-    font=dict(family="Bahnschrift", size=14, color="grey"),
-    showlegend=False,
-    width=800, height=350,
-    )
-  
-  avg = round(np.average(tmp["Value"]),2)
-  fig.add_shape(type="line",
-      x0=avg, y0=-0.5, x1=avg, y1=4.5,
-      line=dict(color="grey",width=2),
-      opacity=0.5, layer="below"
-  )
-  
-#   fig.show("notebook")
+    fig.update_layout(
+        # title_text=f'{year}',
+        # yaxis_title=None,
+        # xaxis_title="€/h",
+        xaxis=dict(showline=True, showticklabels=True, ticks='outside',
+                    linecolor='rgb(204, 204, 204)', linewidth=2, dtick = 5,
+                    range = [0, val_x_axis]),
+        yaxis=dict( showgrid=False, showline=False, ticksuffix='  '),
+        paper_bgcolor='white',
+        plot_bgcolor='white',
+        font=dict(family="Bahnschrift", size=14, color="grey"),
+        showlegend=False,
+        width=800, height=350,
+        )
 
-  # Export images
-  if exportFigure:
-    fig.write_image(f"{figureOutputFolder_this}/barChartSectors{year}.svg")
-    fig.write_image(f"{figureOutputFolder_this}/barChartSectors{year}.png", width=outputWidthImage, height=outputHeightImage)
+    avg = round(np.average(tmp["Value"]),2)
+    fig.add_shape(type="line",
+                    x0=avg, y0=-0.5, x1=avg, y1=4.5,
+                    line=dict(color="grey",width=2),
+                    opacity=0.5, layer="below"
+                    )
+    
+    # fig.show("notebook")
+
+    # Export images
+    if exportFigure:
+        fig.write_image(f"{figureOutputFolder_this}/barChartSectors{year}.svg")
+        fig.write_image(f"{figureOutputFolder_this}/barChartSectors{year}.png", width=outputWidthImage, height=outputHeightImage)
 
 
 # ### Plot with slider
 
 # In[ ]:
 
-
-howManyEls=3
 df_new = pd.DataFrame(columns=['Ateco 2007','TIME','Value'])
 
-for year in range(2014,2018,1):
-  tmp = df_sectors_tot.query(f'TIME=={year}').sort_values(by='Value')
-  df_new = df_new.append(tmp.head(howManyEls))
-  
-  others = {'Ateco 2007':['Others'],'TIME':[year],'Value':[round(np.average(tmp.head(-howManyEls).tail(-howManyEls)["Value"]),2)]}
-  tmp_others = pd.DataFrame(others,columns=['Ateco 2007','TIME','Value'])
-  df_new = df_new.append(tmp_others)
-  
-  df_new = df_new.append(tmp.tail(howManyEls))
+for year in years:
+    tmp = df_sectors_tot.query(f'TIME=={year}').sort_values(by='Value',ascending=False)
+    df_new = df_new.append(tmp.head(howMany))
 
 df_new = df_new.sort_values(by='Value').reset_index()
 
 fig = px.bar(df_new, x="Value", y="Ateco 2007", text="Value",
-  animation_frame="TIME", range_x=[0,df_new['Value'].max()*1.1])
+            animation_frame="TIME", range_x=[0,df_new['Value'].max()*1.1], color_discrete_sequence=[colors_palette[1]]*howMany)
 
 fig.update_traces(texttemplate='%{text:.2f} ', textposition='inside')
 
+
 fig.update_layout(
-      xaxis=dict( showgrid=False, showline=False ),
-      yaxis=dict( showgrid=False, showline=False, ),
-      paper_bgcolor='rgb(248, 248, 255)',
-      plot_bgcolor='rgb(248, 248, 255)',
+    #title_text=f'{year}',
+    yaxis_title=None,
+    xaxis_title="€/h",
+    xaxis=dict(showline=True, showticklabels=True, ticks='outside',
+                linecolor='rgb(204, 204, 204)', linewidth=2, dtick = 5,
+                range = [0, val_x_axis]),
+    yaxis=dict( showgrid=False, showline=False, ticksuffix='  '),
+    paper_bgcolor='white',
+    plot_bgcolor='white',
+    font=dict(family="Bahnschrift",size=14,color="grey"),
+    showlegend=False
     )
 
+# avg = round(np.average(tmp["Value"]),2)
+# fig.add_shape(type="line",
+#     x0=avg, y0=-0.5, x1=avg, y1=4.5,
+#     line=dict(color="grey",width=2),
+#     opacity=0.5, layer="below"
+# )
+
 fig.layout.updatemenus[0].buttons[0].args[1]['frame']['duration'] = 1000
-# fig.layout.updatemenus[0].buttons[0].args[1]['transition']['duration'] = 1
-  
+
 # fig.show("notebook")
 
 if exportFigure:
-  fig.write_html(f"{figureOutputFolder_this}/barChartSectors.html")
-  del figureOutputFolder_this
+    fig.write_html(f"{figureOutputFolder_this}/barChartSectors.html")
+    del figureOutputFolder_this
 
 
 
