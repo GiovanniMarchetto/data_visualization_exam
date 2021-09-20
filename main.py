@@ -15,6 +15,8 @@ import plotly.graph_objs as go
 import plotly.express as px
 import numpy as np
 import time
+import re
+from shapely.wkt import loads
 
 # Parameters
 import geopandas as gpd
@@ -34,6 +36,7 @@ dataFileName = dataFolderName + '/DCSC_RACLI_01092021113430630.csv' # for data l
 outputWidthImage = 10000
 outputHeightImage = 7000
 
+default_font_family = "Bahnschrift Light"
 colors_palette = ['#003a2b','#249e89','#f5f5f5','#d86e58','#6a0000']
 
 exportFigure = False    # set to true if you want to export the figure
@@ -288,13 +291,13 @@ def getProvinceSalaryvalue(year=-1):        # TODO: take a list as input paramet
 
     # NOTE: This part should be part of data transforming? But ranges should adapt to the context?
 
-    salaryCategoryBorders = range(9,20,2)   # same category subdivion for all years
+    salaryCategoryBorders = range(11,20,2)   # same category subdivion for all years
     for year in years:
         oldCategory=0
         df = df_years[year]
         for category in salaryCategoryBorders:
             numberProvinceInThisCategory = sum([valueCountedData[year][key] for key in np.intersect1d(valueCountedData[year].keys().tolist(), range(oldCategory,category))])
-            df.loc[(oldCategory<=df['Value']) & ( (df['Value']<category) | (df['Value']>=salaryCategoryBorders[-1]) ), "SalaryCategory"] =                                      (f"{oldCategory} ≤ " if oldCategory >= salaryCategoryBorders[0] else "        ")                                                                                 + ".."                                                                                                                                                          + (f" < {category}"  if category < salaryCategoryBorders[-1] else "        ")                                                                                   + f"  €/hr\t({numberProvinceInThisCategory} provinces)"
+            df.loc[(oldCategory<=df['Value']) & ( (df['Value']<category) | (df['Value']>=salaryCategoryBorders[-1]) ), "SalaryCategory"] =                                   (f"{oldCategory} ≤ " if oldCategory >= salaryCategoryBorders[0] else "       ")                                                                              + ".."                                                                                                                                                       + (f" < {category}"  if category < salaryCategoryBorders[-1] else "       ")                                                                                 + f"\t€/hr\t({numberProvinceInThisCategory} provinces)"
             oldCategory = category
         
         # sort (needed to respect the range-scale in plots if categorization is used)
@@ -313,7 +316,7 @@ def getProvinceSalaryvalue(year=-1):        # TODO: take a list as input paramet
     return  df
 
 
-def categorization(salaryCategoryBorders = range(9,20,2)):
+def categorization(salaryCategoryBorders = range(11,20,2)): # TODO: code duplication with getProvinceSalaryvalue()
     '''
     Returns a Pandas Dataframe with three columns: one for the year, the second for the
     salary category and the third for the corresponding number of provinces where people
@@ -358,7 +361,7 @@ def avgSalary(territory='Italia', year=-1):
     '''
     query = f"Territorio=='Italia' & Sesso=='totale' & `Classe di età`=='totale' & `Qualifica contrattuale`=='totale' & `Classe di dipendenti`=='totale'"               + (f" & `TIME=={year}" if year!=-1 else "")
     return round(100*getDataAboutTerritory().query(query)['Value'].mean())/100  # round(100*..)/100 is used to have two decimal digits
-    
+
 
 # Utility functions for geo-data
 def readGeoDataToDictHavingYearAsKey():
@@ -381,6 +384,7 @@ def readGeoDataToDictHavingYearAsKey():
     # Note: territories coords change over the year, hence we save the year near the territory names
     for year in map_df.keys():
         map_df[year]["TerritorioAnno"] = map_df[year]["DEN_PCM"] + str(year)
+        map_df[year] = map_df[year][['DEN_PCM','TerritorioAnno','geometry']]
     
     return map_df
 
@@ -429,7 +433,7 @@ def createGeoJsonFromFile(geoJsonFolder, shapeDataDictYears, convertCrsToLatLong
     return geoJsonData if(isInputShapeDataAsDict)                        else geoJsonData[[v for v in shapeDataDictYears.keys()][0]]
 
 
-def loadDataMultipleYears(provinceNames=[], years=[]):
+def loadDataMultipleYears(provinceNames=[], years=[], compress=-1, simplify=-1):
     '''
     Returns the GeoJson data and the dataframe of provinces (only with territories, economic sectors
     excluded) for all the years. Additionally, the dataframe of provinces is improved with percentages
@@ -442,7 +446,12 @@ def loadDataMultipleYears(provinceNames=[], years=[]):
     If the parameter provinceNames is specified, only data about the desired provinces will be loaded
     (a list is expected).
     If the parameter years (a list is expected) is specified, only data about selected years will be
-    returned
+    returned.
+    If the parameter 'compress' is specified and set to a positive value, then a compressed version of the GeoJson
+    data will be provided. The compression is given by rounding the precision of the geo coordinates to
+    the specified number of decimal digits.
+    Similarly, you can specify a tolerance value for the parameter 'simplify'.
+    See: https://geopandas.org/docs/user_guide/geometric_manipulations.html#GeoSeries.simplify
     '''
 
     # Read geo-data
@@ -460,7 +469,7 @@ def loadDataMultipleYears(provinceNames=[], years=[]):
     if(len(provinceNames)>0):
         df_province = df_province.query(' | '.join({f'(Territorio=="{provinceName}")' for provinceName in provinceNames}))
         map_df = {year: map_df[year].query(' | '.join({f'(DEN_PCM=="{provinceName}")' for provinceName in provinceNames})) for year in years}
-
+    
     # Compute percentage of salaries in each province wrt. the national average value and add to the dataframe
     for year in years:
         # Percentage increment (I) for a province wrt. national average value (A):      V = A + I/100*A ,   V=value in the province, ==> I = 100(V/A-1)  [%]
@@ -473,11 +482,92 @@ def loadDataMultipleYears(provinceNames=[], years=[]):
     # Format the value
     df_province["Value2"] = df_province["Value"].map('{:.2f} €/h'.format)
 
+    # Union over years of geodata and conversion of coordinates
+    geoData = pd.concat(tuple(convertCrsToLatLong(map_df[year]) for year in years))
+
+    # Compression of geo data (from: https://gis.stackexchange.com/a/321531)
+    if compress>=0:
+        # Round coordinates to the specified number of decimal digits. Topology may not be preserved
+        simpledec = re.compile(r"\d*\.\d+")
+        geoData['geometry'] = geoData['geometry'].apply(lambda x: loads(re.sub(simpledec, lambda match: f"{float(match.group()):.{compress}f}", x.wkt)))                                                     .simplify(0) # 0 means no tolerance
+    if simplify>0:
+        geoData['geometry'] = geoData['geometry'].simplify(simplify)
+    
     # Create GeoJson from SHP dataframe (union over years of shp files)
-    geoJsonData = createGeoJsonFromFile(geoJsonFolder, pd.concat(tuple(convertCrsToLatLong(map_df[year]) for year in years)))
-
-
+    geoJsonData = createGeoJsonFromFile(geoJsonFolder, geoData)
     return geoJsonData, df_province
+
+
+def createFigure(dataframe, geoJsonData):
+    '''
+    Create the figure for answering to this question.
+    Parameters:
+    -  dataframe   :  the dataframe with values to use
+    -  geoJsonData :  the geoJson dataframe associated with the given dataframe
+    If data refer to more than one year, an animation over the years is shown.
+    Returns: the created figure.
+    '''
+
+    # consider only a subset of columns (less size)
+    dataframe = dataframe[['TIME', 'TerritorioAnno', 'Territorio', 'Value2', 'SalaryCategory', 'Salary wrt. national average [%]']]
+
+    showAnimationFlag = len(dataframe['TIME'].drop_duplicates()) > 1        # in order to show the animation over the years, data about more than one year must be available
+
+    if showAnimationFlag:
+        # Keep only the salary category (drop out the number of provinces belonging to it)
+        dataframe['SalaryCategory2'] = tuple( aMatch[0] for aMatch in re.findall(r"(\s*[0-9]*\s*([≤][ ])?[.]{2}([ ][<])?\s*[0-9]*)", ''.join(dataframe['SalaryCategory'].tolist()) ) )
+        salaryCategories = dataframe['SalaryCategory2'].drop_duplicates().sort_values().tolist()
+        salaryCategories = tuple([salaryCategories[-1]] + salaryCategories[:-1])
+        if len(salaryCategories)!=len(colors_palette):
+            raise Exception('Number of colors is different than the number of categories')
+
+    colorLabel = 'SalaryCategory2' if showAnimationFlag else 'SalaryCategory'
+    fig = px.choropleth(
+        data_frame=dataframe, 
+        geojson=geoJsonData, 
+        locations='TerritorioAnno',               # name of dataframe column
+        hover_name='Territorio',
+        hover_data={'TIME':False, 'Value2':True, colorLabel:False, 'Territorio': False, 'TerritorioAnno': False, 'Salary wrt. national average [%]': True},          # TODO: improve this (see "hovertemplate")
+        featureidkey='properties.TerritorioAnno', # path to field in GeoJSON feature object with which to match the values passed in to locations
+        color=colorLabel,
+        color_discrete_sequence=colors_palette,      # for discrete scale of colors
+        center={"lat": 42, "lon": 13},
+        projection='mercator',
+        labels={colorLabel: 'Average hourly gross salary', 'Value2': 'Avg salary', "Salary wrt. national average [%]": "Percentage"},
+        animation_frame="TIME" if showAnimationFlag else None,
+    )
+    fig.update_traces(marker=dict(opacity=1, line=dict(color='black', width=0.1)))      # TODO: look for "hovertemplate, https://plotly.com/python/reference/choropleth/#choropleth-hovertemplate"
+    fig.update_layout(        
+        hoverlabel=dict(font_family=default_font_family),
+        plot_bgcolor='white',
+        font=dict(color='dimgray', family=default_font_family),
+        title=None, # title='Salaries in private companies',
+        margin={"r":0,"t":0,"l":0,"b":0},
+        title_font_family=default_font_family,
+        legend_itemsizing='trace'               # Determines if the legend items symbols scale with their corresponding "trace" attributes or remain "constant" independent of the symbol size on the graph. # TODO: NOT working
+    )
+
+    # Add text annotation outside the map
+    fig.add_annotation(
+        dict(font=dict(color="dimgray",size=9),
+            x=1.15,
+            y=0.65,
+            showarrow=False,
+            text='Percentages on hover labels refer to the <br> national average gross salary for the year.',
+            textangle=0,
+            align='left',
+            xref="paper",
+            yref="paper"
+        )
+    )
+
+    fig.update_geos(showcountries=False, showcoastlines=False, showland=False, fitbounds="locations")
+
+    if showAnimationFlag:
+        fig.layout.updatemenus[0].buttons[0].args[1]['frame']['duration'] = 1000
+        fig.layout.updatemenus[0].buttons[0].args[1]['transition']['duration'] = 100
+
+    return fig 
 
 
 # ### Plot maps
@@ -504,6 +594,22 @@ if exportFigure:
         sh.rmtree(figureOutputFolder_this)
     os.makedirs(figureOutputFolder_this)
     
+
+# Load data and compressed geodata about salaries (for animation over years)
+simplifyTolerance=0.01       # TODO : should be a parameter?
+geoJsonData, df_province = loadDataMultipleYears(simplify=simplifyTolerance) # simplify geodata (to save memory space)
+# decimalDigitsCompression = 2 # TODO : should be a parameter?
+# geoJsonData, df_province = loadDataMultipleYears(compress=decimalDigitsCompression) # simplify geodata (to save memory space)
+fig = createFigure(df_province, geoJsonData)
+
+# Export the figure
+if exportFigure:
+    fig.write_html(f"{figureOutputFolder_this}/geoMapSlider.html")
+
+
+# Re-load data and load uncompressed geodata
+geoJsonData, df_province = loadDataMultipleYears()
+    
 for year in years:
     geoJsonData, df_province = loadDataMultipleYears(years=[year])
 
@@ -520,37 +626,14 @@ for year in years:
     print(f"\tItalian average gross salary: %.2f €/h" % df_province['Value'].mean())
 
     # Choropleth by categories
-
-    fig = px.choropleth(
-        data_frame=df_province, 
-        geojson=geoJsonData, 
-        locations='Territorio',              # name of dataframe column
-        featureidkey='properties.DEN_PCM',   # path to field in GeoJSON feature object with which to match the values passed in to locations
-        color='SalaryCategory',
-        color_discrete_sequence=colors_palette,      # for discrete scale of colors
-        center={"lat": 42, "lon": 13},
-        projection='mercator',
-        labels={'SalaryCategory': 'Average hourly gross salary', 'Value2': 'Avg salary', "Salary wrt. national average [%]": "Percentage"},
-        hover_name='Territorio',
-        hover_data={'Value':False, 'Value2':True, 'SalaryCategory':False, 'Territorio': False, 'Salary wrt. national average [%]': True}          # TODO: improve this (see "hovertemplate")
-    )
-    fig.update_traces(marker=dict(opacity=1, line=dict(color='black', width=0.1)))      # TODO: look for "hovertemplate, https://plotly.com/python/reference/choropleth/#choropleth-hovertemplate"
-    fig.update_layout(
-        plot_bgcolor='white',
-        font=dict(color='dimgray'),
-        title='Salaries in private companies',
-        margin={"r":0,"t":0,"l":0,"b":0},
-        legend_itemsizing='trace'               # Determines if the legend items symbols scale with their corresponding "trace" attributes or remain "constant" independent of the symbol size on the graph. # TODO: NOT working
-    )
-    fig.update_geos(showcountries=False, showcoastlines=False, showland=False, fitbounds="locations")
-    # fig.show("notebook")
+    fig = createFigure(df_province, geoJsonData)
 
     # Export the figure
     if exportFigure:
         fig.write_image(f"{figureOutputFolder_this}/geoMap{year}.svg")
         fig.write_image(f"{figureOutputFolder_this}/geoMap{year}.png", width=outputWidthImage, height=outputHeightImage)
 
-
+    
 
     # Barplot
 
@@ -572,6 +655,7 @@ for year in years:
     )
 
     fig.update_layout(
+        hoverlabel=dict(font_family=default_font_family),
         title_text=f'{year}',
         yaxis_title=df_year_salaryCategory_nProvs[year].columns[0],
         xaxis_title="Number of provinces",
@@ -582,11 +666,14 @@ for year in years:
         yaxis=dict( showgrid=False, showline=False, side='right'),              # yaxis on the right side
         paper_bgcolor='white',
         plot_bgcolor='white',
+        title_font_family=default_font_family,
+        font=dict(family=default_font_family),
         showlegend=False,
         hovermode=False
     )
+    fig.update_xaxes(title_font_family=default_font_family)
+    fig.update_yaxes(title_font_family=default_font_family)
 
-    # fig.show("notebook")
 
     # Export the figure
     if exportFigure:
@@ -661,13 +748,13 @@ for i in range(0, len(labels)):
     # Name of lines
     annotations.append(dict(text=labels[i],showarrow=False,
         xref='x', x=x_data[i,3]+0.05, y=y_data[i,3], xanchor='left', yanchor='middle', 
-        font=dict(family="Bahnschrift",size=16,color=colors[i])))
+        font=dict(family=default_font_family,size=16,color=colors[i])))
 
 fig.update_layout(annotations=annotations)
 
 fig.update_layout(
     xaxis_title="Year",
-    yaxis_title="€/h",
+    yaxis_title="Gross salary [€/h]",
     xaxis=dict( showgrid=False,showline=True, showticklabels=True, ticks='outside',
         linecolor='rgb(204, 204, 204)', linewidth=2, dtick = 1),
     yaxis=dict( showgrid=False,showline=True, showticklabels=True, ticks='outside', 
@@ -676,14 +763,19 @@ fig.update_layout(
         range = [0, round(max(y_data[0])+1)]),
     showlegend=False,
     plot_bgcolor='white',
-    font=dict(family="Bahnschrift",size=10,color="grey"),
+    title_font_family=default_font_family,
+    font=dict(family=default_font_family,size=10,color="grey"),
     width=800, height=500
 )
+
+fig.update_xaxes(title_font_family=default_font_family)
+fig.update_yaxes(title_font_family=default_font_family)
 
 # Add shapes
 color_shp = colors_palette[2]
 
-fig.update_layout(
+fig.update_layout(        
+    hoverlabel=dict(font_family=default_font_family),
     shapes=[
         # male-female
         dict(
@@ -727,7 +819,6 @@ fig.update_layout(
     ]
 )
 
-# fig.show()
 
 # Export images
 if exportFigure:
@@ -769,38 +860,48 @@ if exportFigure:
 
 for year in range(2014,2018,1):
     tmp = df_sectors_tot.query(f'TIME=={year}').sort_values(by='Value')
-    print(f"\n\tYear {year}: \n\t\t" + "\n\t\t".join( reversed((tmp['Ateco 2007'] + "\t( " + tmp['Value'].astype(str) + " €/h)").tolist()) ) )
+    print(f"\n\tYear {year}: \n\t\t" + "\n\t\t".join(reversed((tmp['Ateco 2007'] + "\t( " + tmp['Value'].astype(str) + " €/h )").tolist()) ) )
 
     fig = px.bar(tmp.tail(howMany), x="Value", y="Ateco 2007 BR", text="Value")
 
     fig.update_traces(
         texttemplate='%{text:.2f} ', textposition='inside',
         marker_color= colors_palette[1], opacity=0.8
-        )
-
+    )
+    fig.update_traces(texttemplate='%{text:.2f} ', textposition='inside')
+    fig.update_traces(marker_color= colors_palette[1], opacity=0.8)
     fig.update_layout(
-        # title_text=f'{year}',
-        # yaxis_title=None,
-        # xaxis_title="€/h",
+        hoverlabel=dict(font_family=default_font_family),
+        #title_text=f'{year}',
+        yaxis_title=None,
+        xaxis_title="Gross salary [€/h]",
         xaxis=dict(showline=True, showticklabels=True, ticks='outside',
-                    linecolor='rgb(204, 204, 204)', linewidth=2, dtick = 5,
-                    range = [0, val_x_axis]),
+            linecolor='rgb(204, 204, 204)', linewidth=2, dtick = 5,
+            range = [0, val_x_axis]),
         yaxis=dict( showgrid=False, showline=False, ticksuffix='  '),
         paper_bgcolor='white',
         plot_bgcolor='white',
-        font=dict(family="Bahnschrift", size=14, color="grey"),
+        font=dict(family=default_font_family,size=12,color="grey"),
+        title_font_family=default_font_family,
         showlegend=False,
-        width=800, height=350,
-        )
+        width=800, height=350
+    )
+    fig.update_xaxes(title_font_family=default_font_family)
+    fig.update_yaxes(title_font_family=default_font_family)
 
     avg = round(np.average(tmp["Value"]),2)
-    fig.add_shape(type="line",
-                    x0=avg, y0=-0.5, x1=avg, y1=4.5,
-                    line=dict(color="grey",width=2),
-                    opacity=0.5, layer="below"
-                    )
-    
-    # fig.show("notebook")
+    fig.add_shape(
+        type="line",
+        x0=avg, y0=-0.5, x1=avg, y1=4.5,
+        line=dict(color="grey",width=2),
+        opacity=0.5, layer="below"
+    )
+    fig.add_annotation(
+        x=avg, y=4.9,
+        text="Average<br>{avg}",
+        font=dict(family=default_font_family,size=12,color="grey"),
+        showarrow=False
+    )
 
     # Export images
     if exportFigure:
@@ -818,40 +919,50 @@ for year in years:
     tmp = df_sectors_tot.query(f'TIME=={year}').sort_values(by='Value',ascending=False)
     df_new = df_new.append(tmp.head(howMany))
 
-df_new = df_new.sort_values(by='Value').reset_index()
+df_new = df_new.sort_values(by=['TIME','Value']).reset_index(drop=True)
 
 fig = px.bar(df_new, x="Value", y="Ateco 2007", text="Value",
-            animation_frame="TIME", range_x=[0,df_new['Value'].max()*1.1], color_discrete_sequence=[colors_palette[1]]*howMany)
+    animation_frame="TIME", range_x=[0,df_new['Value'].max()*1.1],
+    color_discrete_sequence=[colors_palette[1]]*howMany)
 
 fig.update_traces(texttemplate='%{text:.2f} ', textposition='inside')
 
-
-fig.update_layout(
+fig.update_layout(        
+    hoverlabel=dict(font_family=default_font_family),
     #title_text=f'{year}',
     yaxis_title=None,
-    xaxis_title="€/h",
+    xaxis_title="Gross salary [€/h]",
     xaxis=dict(showline=True, showticklabels=True, ticks='outside',
                 linecolor='rgb(204, 204, 204)', linewidth=2, dtick = 5,
                 range = [0, val_x_axis]),
-    yaxis=dict( showgrid=False, showline=False, ticksuffix='  '),
+    yaxis=dict(showgrid=False, showline=False, ticksuffix='  '),
     paper_bgcolor='white',
     plot_bgcolor='white',
-    font=dict(family="Bahnschrift",size=14,color="grey"),
-    showlegend=False
-    )
+    title_font_family=default_font_family,
+    font=dict(family=default_font_family,size=12,color="grey"),
+    showlegend=False,
+    width=800, height=400
+)
+fig.update_xaxes(title_font_family=default_font_family)
+fig.update_yaxes(title_font_family=default_font_family)
 
-# avg = round(np.average(tmp["Value"]),2)
-# fig.add_shape(type="line",
-#     x0=avg, y0=-0.5, x1=avg, y1=4.5,
-#     line=dict(color="grey",width=2),
-#     opacity=0.5, layer="below"
-# )
+
+avg = round(np.average(tmp["Value"]),2)
+fig.add_shape(type="line",
+    x0=avg, y0=-0.5, x1=avg, y1=4.5,
+    line=dict(color="grey",width=2),
+    opacity=0.5, layer="below"
+)
+fig.add_annotation(
+    x=avg, y=4.9,
+    text=f"Average<br>{avg}",
+    font=dict(family=default_font_family,size=12,color="grey"),
+    showarrow=False
+)
 
 fig.layout.updatemenus[0].buttons[0].args[1]['frame']['duration'] = 1000
 
-# fig.show("notebook")
-
-if exportFigure:
+if exportFigure: 
     fig.write_html(f"{figureOutputFolder_this}/barChartSectors.html")
     del figureOutputFolder_this
 
