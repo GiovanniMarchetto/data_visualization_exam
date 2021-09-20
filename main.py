@@ -9,20 +9,17 @@
 
 # In[ ]:
 
-
+import geopandas as gpd
+import json
+import numpy as np
+import os
 import pandas as pd
 import plotly.graph_objs as go
 import plotly.express as px
-import numpy as np
-import time
 import re
 from shapely.wkt import loads
-
-# Parameters
-import geopandas as gpd
-import json
-import os
 import shutil as sh
+import time
 
 
 # ### Parameters
@@ -33,15 +30,15 @@ dataFolderName = 'data'
 geoJsonFolder = dataFolderName+'/geoJson/'
 figureOutputFolder = 'exported_figures'
 dataFileName = dataFolderName + '/DCSC_RACLI_01092021113430630.csv' # for data loading (salaries)
-outputWidthImage = 10000
-outputHeightImage = 7000
 
 default_font_family = "Bahnschrift Light"
 colors_palette = ['#003a2b','#249e89','#f5f5f5','#d86e58','#6a0000']
 
+# for animations
+animation_duration_frame = 1000         # millisecs
+animation_duration_transition = 100     # millisecs
+
 exportFigure = False    # set to true if you want to export the figure
-
-
 
 
 
@@ -284,7 +281,9 @@ def getProvinceSalaryvalue(year=-1):        # TODO: take a list as input paramet
     
     years = sorted(df_years.keys())
 
-    df_years = {year: df_years[year].query("Sesso=='totale' & `Classe di età`=='totale' & `Qualifica contrattuale`=='totale' & `Classe di dipendenti`=='totale'")                                       .drop(['Sesso', 'Classe di età', 'Qualifica contrattuale', 'Classe di dipendenti'], axis=1)                                                     for year in years}
+    df_years = {year: df_years[year].query("Sesso=='totale' & `Classe di età`=='totale' & `Qualifica contrattuale`=='totale' & `Classe di dipendenti`=='totale'")
+                                    .drop(['Sesso', 'Classe di età', 'Qualifica contrattuale', 'Classe di dipendenti'], axis=1)
+                    for year in years}
 
     # Categorization of Salary values (grouping in categories)
     valueCountedData = {year: np.floor(df_years[year]["Value"]).astype(int).value_counts() for year in years}
@@ -297,7 +296,7 @@ def getProvinceSalaryvalue(year=-1):        # TODO: take a list as input paramet
         df = df_years[year]
         for category in salaryCategoryBorders:
             numberProvinceInThisCategory = sum([valueCountedData[year][key] for key in np.intersect1d(valueCountedData[year].keys().tolist(), range(oldCategory,category))])
-            df.loc[(oldCategory<=df['Value']) & ( (df['Value']<category) | (df['Value']>=salaryCategoryBorders[-1]) ), "SalaryCategory"] =                                   (f"{oldCategory} ≤ " if oldCategory >= salaryCategoryBorders[0] else "       ")                                                                              + ".."                                                                                                                                                       + (f" < {category}"  if category < salaryCategoryBorders[-1] else "       ")                                                                                 + f"\t€/hr\t({numberProvinceInThisCategory} provinces)"
+            df.loc[(oldCategory<=df['Value']) & ( (df['Value']<category) | (df['Value']>=salaryCategoryBorders[-1]) ), "SalaryCategory"] =                                   (f"{oldCategory} ≤ " if oldCategory >= salaryCategoryBorders[0] else "       ")                                                                              + ".."                                                                                                                                                       + (f" < {category}"  if category < salaryCategoryBorders[-1] else "       ")                                                                                 + f"\t  €/h\t({numberProvinceInThisCategory} province{'s' if numberProvinceInThisCategory>2 else ''})"
             oldCategory = category
         
         # sort (needed to respect the range-scale in plots if categorization is used)
@@ -328,12 +327,14 @@ def categorization(salaryCategoryBorders = range(11,20,2)): # TODO: code duplica
 
     df_years = getDataAboutProvincesInDictHavingYearsAsKey()
     years = sorted(df_years.keys())
-    df_years = {year: df_years[year].query("Sesso=='totale' & `Classe di età`=='totale' & `Qualifica contrattuale`=='totale' & `Classe di dipendenti`=='totale'")                                       .drop(['Sesso', 'Classe di età', 'Qualifica contrattuale', 'Classe di dipendenti'], axis=1)                                                     for year in years}
+    df_years = {year: df_years[year].query("Sesso=='totale' & `Classe di età`=='totale' & `Qualifica contrattuale`=='totale' & `Classe di dipendenti`=='totale'")
+                                    .drop(['Sesso', 'Classe di età', 'Qualifica contrattuale', 'Classe di dipendenti'], axis=1)
+                    for year in years}
 
     # Categorization of Salary values (grouping in categories)
     valueCountedData = {year: np.floor(df_years[year]["Value"]).astype(int).value_counts() for year in years}
 
-    df_toReturn = pd.DataFrame(columns=['Year', 'Gross salary  [€/hr]', '#Provinces'])
+    df_toReturn = pd.DataFrame(columns=['Year', 'Gross salary  [€/h]', '#Provinces'])
     columnNames = tuple(df_toReturn.columns)
 
     for year in years:
@@ -502,10 +503,10 @@ def createFigure(dataframe, geoJsonData):
     '''
     Create the figure for answering to this question.
     Parameters:
-    -  dataframe   :  the dataframe with values to use
-    -  geoJsonData :  the geoJson dataframe associated with the given dataframe
-    If data refer to more than one year, an animation over the years is shown.
-    Returns: the created figure.
+     -  dataframe   :  the dataframe with values to use
+     -  geoJsonData :  the geoJson dataframe associated with the given dataframe
+     If data refer to more than one year, an animation over the years is shown.
+     Returns: the created figure.
     '''
 
     # consider only a subset of columns (less size)
@@ -515,7 +516,7 @@ def createFigure(dataframe, geoJsonData):
 
     if showAnimationFlag:
         # Keep only the salary category (drop out the number of provinces belonging to it)
-        dataframe['SalaryCategory2'] = tuple( aMatch[0] for aMatch in re.findall(r"(\s*[0-9]*\s*([≤][ ])?[.]{2}([ ][<])?\s*[0-9]*)", ''.join(dataframe['SalaryCategory'].tolist()) ) )
+        dataframe['SalaryCategory2'] = tuple( aMatch[0] for aMatch in re.findall(r"((\s*[0-9]*\s*([≤][ ])?[.]{2}([ ][<])?\s*[0-9]*)(\s*€\/h))", ''.join(dataframe['SalaryCategory'].tolist()) ) )
         salaryCategories = dataframe['SalaryCategory2'].drop_duplicates().sort_values().tolist()
         salaryCategories = tuple([salaryCategories[-1]] + salaryCategories[:-1])
         if len(salaryCategories)!=len(colors_palette):
@@ -523,6 +524,7 @@ def createFigure(dataframe, geoJsonData):
 
     colorLabel = 'SalaryCategory2' if showAnimationFlag else 'SalaryCategory'
     fig = px.choropleth(
+        # title=None, title='Salaries in private companies',
         data_frame=dataframe, 
         geojson=geoJsonData, 
         locations='TerritorioAnno',               # name of dataframe column
@@ -530,10 +532,12 @@ def createFigure(dataframe, geoJsonData):
         hover_data={'TIME':False, 'Value2':True, colorLabel:False, 'Territorio': False, 'TerritorioAnno': False, 'Salary wrt. national average [%]': True},          # TODO: improve this (see "hovertemplate")
         featureidkey='properties.TerritorioAnno', # path to field in GeoJSON feature object with which to match the values passed in to locations
         color=colorLabel,
-        color_discrete_sequence=colors_palette,      # for discrete scale of colors
+        color_discrete_sequence=colors_palette,   # for discrete scale of colors
         center={"lat": 42, "lon": 13},
         projection='mercator',
-        labels={colorLabel: 'Average hourly gross salary', 'Value2': 'Avg salary', "Salary wrt. national average [%]": "Percentage"},
+        labels={
+            colorLabel: '<br><br>Average hourly gross salary                              ',    # <br> and spaces used for layout
+            'Value2': 'Avg salary', "Salary wrt. national average [%]": "Percentage"},
         animation_frame="TIME" if showAnimationFlag else None,
     )
     fig.update_traces(marker=dict(opacity=1, line=dict(color='black', width=0.1)))      # TODO: look for "hovertemplate, https://plotly.com/python/reference/choropleth/#choropleth-hovertemplate"
@@ -541,19 +545,18 @@ def createFigure(dataframe, geoJsonData):
         hoverlabel=dict(font_family=default_font_family),
         plot_bgcolor='white',
         font=dict(color='dimgray', family=default_font_family),
-        title=None, # title='Salaries in private companies',
-        margin={"r":0,"t":0,"l":0,"b":0},
+        # margin={"r":0,"t":0,"l":0,"b":0},
         title_font_family=default_font_family,
         legend_itemsizing='trace'               # Determines if the legend items symbols scale with their corresponding "trace" attributes or remain "constant" independent of the symbol size on the graph. # TODO: NOT working
     )
 
     # Add text annotation outside the map
     fig.add_annotation(
-        dict(font=dict(color="dimgray",size=9),
-            x=1.15,
-            y=0.65,
+        dict(font=dict(color="dimgray",size=10),
+            x=1.225 if showAnimationFlag else 1.67,
+            y=0.45,
             showarrow=False,
-            text='Percentages on hover labels refer to the <br> national average gross salary for the year.',
+            text='Percentages on hover labels refer to the <br>national average gross salary for the year.',
             textangle=0,
             align='left',
             xref="paper",
@@ -564,10 +567,10 @@ def createFigure(dataframe, geoJsonData):
     fig.update_geos(showcountries=False, showcoastlines=False, showland=False, fitbounds="locations")
 
     if showAnimationFlag:
-        fig.layout.updatemenus[0].buttons[0].args[1]['frame']['duration'] = 1000
-        fig.layout.updatemenus[0].buttons[0].args[1]['transition']['duration'] = 100
+        fig.layout.updatemenus[0].buttons[0].args[1]['frame']['duration'] = animation_duration_frame
+        fig.layout.updatemenus[0].buttons[0].args[1]['transition']['duration'] = animation_duration_transition
 
-    return fig 
+    return fig
 
 
 # ### Plot maps
@@ -584,7 +587,7 @@ df_year_salaryCategory_nProvs.iloc[:,1] = "    " + df_year_salaryCategory_nProvs
 df_year_salaryCategory_nProvs = {year: df_year_salaryCategory_nProvs.query(f"{df_year_salaryCategory_nProvs.columns[0]}=={year}").iloc[:,1:3].sort_values(by=[df_year_salaryCategory_nProvs.columns[1]], ascending=True) for year in df_year_salaryCategory_nProvs.iloc[:,0].drop_duplicates()}  # create a dictionary {year: [salaryCategory, numberOfProvinces]}
 print(df_year_salaryCategory_nProvs[2014])
 
-years = range(2014,2018)
+years = years = df_year_salaryCategory_nProvs.keys()
 max_x_val = max(df_year_salaryCategory_nProvs[year].iloc[:,1].max() for year in years)
 
 
@@ -631,7 +634,6 @@ for year in years:
     # Export the figure
     if exportFigure:
         fig.write_image(f"{figureOutputFolder_this}/geoMap{year}.svg")
-        fig.write_image(f"{figureOutputFolder_this}/geoMap{year}.png", width=outputWidthImage, height=outputHeightImage)
 
     
 
@@ -678,7 +680,6 @@ for year in years:
     # Export the figure
     if exportFigure:
         fig.write_image(f"{figureOutputFolder_this}/legend_barChartSectors{year}.svg")
-        fig.write_image(f"{figureOutputFolder_this}/legend_barChartSectors{year}.png")
 
 
 if exportFigure:
@@ -827,7 +828,6 @@ if exportFigure:
         sh.rmtree(figureOutputFolder_this)
     os.makedirs(figureOutputFolder_this)
     fig.write_image(f"{figureOutputFolder_this}/genderGapLine.svg")
-    fig.write_image(f"{figureOutputFolder_this}/genderGapLine.png", width=800, height=500)
     del figureOutputFolder_this
 
 print("Percentage increment of gender gap wrt. 2014: " + str(gapPercentageWrtFirtYear))
@@ -842,7 +842,8 @@ print("Percentage increment of gender gap wrt. 2014: " + str(gapPercentageWrtFir
 print("\n\n## Question 3: What are the most profitable sectors? ##")
 
 df_sectors_tot = df_sectors.query('Sesso=="totale" & `Classe di età`=="totale" &  \
-    `Classe di dipendenti`=="totale" & `Qualifica contrattuale`=="totale"')[['Ateco 2007','Ateco 2007 BR','TIME','Value']]
+                                  `Classe di dipendenti`=="totale" & `Qualifica contrattuale`=="totale"'
+                            )[['Ateco 2007','Ateco 2007 BR','TIME','Value']]
 
 
 # ### Plot horizontal bar chart for sectors
@@ -906,7 +907,6 @@ for year in range(2014,2018,1):
     # Export images
     if exportFigure:
         fig.write_image(f"{figureOutputFolder_this}/barChartSectors{year}.svg")
-        fig.write_image(f"{figureOutputFolder_this}/barChartSectors{year}.png", width=outputWidthImage, height=outputHeightImage)
 
 
 # ### Plot with slider
@@ -945,7 +945,6 @@ fig.update_layout(
     title_font_family=default_font_family,
     font=dict(family=default_font_family,size=12,color="grey"),
     showlegend=False,
-    width=800, height=400,
     annotations = [
         dict(
             x=avg_2014, y=4.9,
@@ -992,7 +991,7 @@ for k in range(len(fig.frames)):
 
     fig.frames[k]['layout'].update(annotations=annotation,shapes=shape)
 
-fig.layout.updatemenus[0].buttons[0].args[1]['frame']['duration'] = 1000
+fig.layout.updatemenus[0].buttons[0].args[1]['frame']['duration'] = animation_duration_frame
 
 if exportFigure: 
     fig.write_html(f"{figureOutputFolder_this}/barChartSectors.html")
