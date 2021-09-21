@@ -541,7 +541,8 @@ def createFigure(dataframe, geoJsonData):
         animation_frame="TIME" if showAnimationFlag else None,
     )
     fig.update_traces(marker=dict(opacity=1, line=dict(color='black', width=0.1)))      # TODO: look for "hovertemplate, https://plotly.com/python/reference/choropleth/#choropleth-hovertemplate"
-    fig.update_layout(        
+    fig.update_layout(
+        height = 800,
         hoverlabel=dict(font_family=default_font_family),
         plot_bgcolor='white',
         font=dict(color='dimgray', family=default_font_family),
