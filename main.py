@@ -604,28 +604,29 @@ if exportFigure:
             var annotationEl = document.createElement(\'p\');                       /* the annotation (HTML elem) */                        \n\
             annotationEl.innerText = \'Percentages on hover labels refer to the national average gross salary for the year\'                \n\
             var body = document.getElementsByTagName(\'body\')[0];                                                                          \n\
-            body.appendChild(annotationEl);                                                                                                 \n\
+                                                                                                                                            \n\
+            var moveAnnotation = function() {                                                                                               \n\
+                annotationXPosition = legendEl.getBoundingClientRect().x;                                                                   \n\
+                annotationYPosition = legendEl.getBoundingClientRect().y + legendEl.getBoundingClientRect().height + 40; /* px */           \n\
+                annotationWidth     = legendEl.getBoundingClientRect().width;                                                               \n\
+                annotationEl.setAttribute(\'style\', \'                                                                                       \
+                    position: fixed;                                                                                                          \
+                    width: \' + annotationWidth + \'px;                                                                                       \
+                    /*left: \' + annotationXPosition + \'px;*/                                                                                \
+                    right: 2%; /*fixed to the right frame*/                                                                                   \
+                    top:  \' + annotationYPosition + \'px;                                                                                    \
+                    font-size: 11px;                                                                                                          \
+                    font-family: ' + default_font_family + '\'                                                                                \
+                );                                                                                                                          \n\
+            }                                                                                                                               \n\
                                                                                                                                             \n\
             var timer;                                                                                                                      \n\
-            var moveAnnotation = function() {                                                                                               \n\
-                var timerTime = 100; /* millisecs*/                                                                                         \n\
-                clearTimeout(timer);                                                                                                        \n\
-                timer = setTimeout(function() {                                                                                             \n\
-                    annotationXPosition = legendEl.getBoundingClientRect().x;                                                               \n\
-                    annotationYPosition = legendEl.getBoundingClientRect().y + legendEl.getBoundingClientRect().height + 40; /* px */       \n\
-                    annotationWidth     = legendEl.getBoundingClientRect().width;                                                           \n\
-                    annotationEl.setAttribute(\'style\', \'                                                                                   \
-                        position: fixed;                                                                                                      \
-                        width: \' + annotationWidth + \'px;                                                                                   \
-                        /*left: \' + annotationXPosition + \'px;*/                                                                            \
-                        right: 2%; /*fixed to the right frame*/                                                                               \
-                        top:  \' + annotationYPosition + \'px;                                                                                \
-                        font-size: 11px;                                                                                                      \
-                        font-family: ' + default_font_family + '\'                                                                            \
-                    );                                                                                                                      \n\
-                },timerTime);                                                                                                               \n\
-            };                                                                                                                              \n\
+            var timerTime = 100; /* millisecs*/                                                                                             \n\
+            clearTimeout(timer);                                                                                                            \n\
+            timer = setTimeout(moveAnnotation,timerTime);                                                                                   \n\
+                                                                                                                                            \n\
             moveAnnotation(); /*Execute when body is loaded*/                                                                               \n\
+            body.appendChild(annotationEl);                                                                                                 \n\
             window.onresize = moveAnnotation;/*Execute each time the window resizes (because legend moves according to the window size)*/   \n\
         })()"'
     )
