@@ -551,20 +551,6 @@ def createFigure(dataframe, geoJsonData):
         legend_itemsizing='trace'               # Determines if the legend items symbols scale with their corresponding "trace" attributes or remain "constant" independent of the symbol size on the graph. # TODO: NOT working
     )
 
-    # Add text annotation outside the map
-    fig.add_annotation(
-        dict(font=dict(color="dimgray",size=10),
-            x=1.225 if showAnimationFlag else 1.67,
-            y=0.45,
-            showarrow=False,
-            text='Percentages on hover labels refer to the <br>national average gross salary for the year.',
-            textangle=0,
-            align='left',
-            xref="paper",
-            yref="paper"
-        )
-    )
-
     fig.update_geos(showcountries=False, showcoastlines=False, showland=False, fitbounds="locations")
 
     if showAnimationFlag:
@@ -608,9 +594,43 @@ fig = createFigure(df_province, geoJsonData)
 
 # Export the figure
 if exportFigure:
-    # fig.write_html(f"{figureOutputFolder_this}/index.html")
+
+    # Edit html to correctly position the annotation
+    figureOutputFolder_this = figureOutputFolder + '/question1'
+    html = fig.to_html(f"{figureOutputFolder_this}/geoMapSlider.html")
+    html = html.replace('<body>','<body onload="(                                                                                           \n\
+        function() {                                                                                                                        \n\
+            var legendEl = document.getElementsByClassName(\'legend\')[0];          /* the legend     (HTML elem) */                        \n\
+            var annotationEl = document.createElement(\'p\');                       /* the annotation (HTML elem) */                        \n\
+            annotationEl.innerText = \'Percentages on hover labels refer to the national average gross salary for the year\'                \n\
+            var body = document.getElementsByTagName(\'body\')[0];                                                                          \n\
+            body.appendChild(annotationEl);                                                                                                 \n\
+                                                                                                                                            \n\
+            var timer;                                                                                                                      \n\
+            var moveAnnotation = function() {                                                                                               \n\
+                var timerTime = 100; /* millisecs*/                                                                                         \n\
+                clearTimeout(timer);                                                                                                        \n\
+                timer = setTimeout(function() {                                                                                             \n\
+                    annotationXPosition = legendEl.getBoundingClientRect().x;                                                               \n\
+                    annotationYPosition = legendEl.getBoundingClientRect().y + legendEl.getBoundingClientRect().height + 40; /* px */       \n\
+                    annotationWidth     = legendEl.getBoundingClientRect().width;                                                           \n\
+                    annotationEl.setAttribute(\'style\', \'                                                                                   \
+                        position: fixed;                                                                                                      \
+                        width: \' + annotationWidth + \'px;                                                                                   \
+                        /*left: \' + annotationXPosition + \'px;*/                                                                            \
+                        right: 2%; /*fixed to the right frame*/                                                                               \
+                        top:  \' + annotationYPosition + \'px;                                                                                \
+                        font-size: 11px;                                                                                                      \
+                        font-family: ' + default_font_family + '\'                                                                            \
+                    );                                                                                                                      \n\
+                },timerTime);                                                                                                               \n\
+            };                                                                                                                              \n\
+            moveAnnotation(); /*Execute when body is loaded*/                                                                               \n\
+            window.onresize = moveAnnotation;/*Execute each time the window resizes (because legend moves according to the window size)*/   \n\
+        })()"'
+    )
     with open(f"{figureOutputFolder_this}/index.html", "w") as html_file:
-        html_file.write(f"<!DOCTYPE html>\n{fig.to_html()}")
+        html_file.write(f"<!DOCTYPE html>\n{html}")
 
 
 # Re-load data and load uncompressed geodata
