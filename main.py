@@ -360,7 +360,7 @@ def avgSalary(territory='Italia', year=-1):
     If the year is not specified, the average value is computed over all the years which
     are available.
     '''
-    query = f"Territorio=='Italia' & Sesso=='totale' & `Classe di età`=='totale' & `Qualifica contrattuale`=='totale' & `Classe di dipendenti`=='totale'"               + (f" & `TIME=={year}" if year!=-1 else "")
+    query = f"Territorio=='{territory}' & Sesso=='totale' & `Classe di età`=='totale' & `Qualifica contrattuale`=='totale' & `Classe di dipendenti`=='totale'" + (f" & TIME=={year}" if year!=-1 else "")
     return round(100*getDataAboutTerritory().query(query)['Value'].mean())/100  # round(100*..)/100 is used to have two decimal digits
 
 
@@ -474,7 +474,7 @@ def loadDataMultipleYears(provinceNames=[], years=[], compress=-1, simplify=-1):
     # Compute percentage of salaries in each province wrt. the national average value and add to the dataframe
     for year in years:
         # Percentage increment (I) for a province wrt. national average value (A):      V = A + I/100*A ,   V=value in the province, ==> I = 100(V/A-1)  [%]
-        nationalAvgSalary = df_province.query(f'TIME=={year}')['Value'].mean()
+        nationalAvgSalary = avgSalary(year=year)
         df_province.loc[df_province.TIME==year, "Salary wrt. national average [%]"] = round(100*(df_province.loc[df_province.TIME==year,'Value']/nationalAvgSalary-1), 2)
 
     # Format the percentage salary
@@ -633,11 +633,10 @@ if exportFigure:
     with open(f"{figureOutputFolder_this}/index.html", "w") as html_file:
         html_file.write(f"<!DOCTYPE html>\n{html}")
 
-
-# Re-load data and load uncompressed geodata
-geoJsonData, df_province = loadDataMultipleYears()
     
 for year in years:
+
+    # Re-load data and load uncompressed geodata
     geoJsonData, df_province = loadDataMultipleYears(years=[year])
 
     print(f"\n\nYear: {year}")
@@ -650,7 +649,7 @@ for year in years:
     
     print(f"\tBest province{'s' if len(best_province)>1 else ''}:\t{str(best_province.to_dict('records'))}")
     print(f"\tWorst province{'s' if len(worst_province)>1 else ''}:\t{str(worst_province.to_dict('records'))}")
-    print(f"\tItalian average gross salary: %.2f €/h" % df_province['Value'].mean())
+    print(f"\tItalian average gross salary: %.2f €/h" % avgSalary(year=year))
 
     # Choropleth by categories
     fig = createFigure(df_province, geoJsonData)
