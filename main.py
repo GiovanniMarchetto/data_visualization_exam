@@ -541,7 +541,8 @@ def createFigure(dataframe, geoJsonData):
         animation_frame="TIME" if showAnimationFlag else None,
     )
     fig.update_traces(marker=dict(opacity=1, line=dict(color='black', width=0.1)))      # TODO: look for "hovertemplate, https://plotly.com/python/reference/choropleth/#choropleth-hovertemplate"
-    fig.update_layout(        
+    fig.update_layout(
+        height = 800,
         hoverlabel=dict(font_family=default_font_family),
         plot_bgcolor='white',
         font=dict(color='dimgray', family=default_font_family),
@@ -607,7 +608,9 @@ fig = createFigure(df_province, geoJsonData)
 
 # Export the figure
 if exportFigure:
-    fig.write_html(f"{figureOutputFolder_this}/geoMapSlider.html")
+    # fig.write_html(f"{figureOutputFolder_this}/index.html")
+    with open(f"{figureOutputFolder_this}/index.html", "w") as html_file:
+        html_file.write(f"<!DOCTYPE html>\n{fig.to_html()}")
 
 
 # Re-load data and load uncompressed geodata
@@ -842,8 +845,8 @@ print("Percentage increment of gender gap wrt. 2014: " + str(gapPercentageWrtFir
 print("\n\n## Question 3: What are the most profitable sectors? ##")
 
 df_sectors_tot = df_sectors.query('Sesso=="totale" & `Classe di età`=="totale" &  \
-                                  `Classe di dipendenti`=="totale" & `Qualifica contrattuale`=="totale"'
-                            )[['Ateco 2007','Ateco 2007 BR','TIME','Value']]
+                                    `Classe di dipendenti`=="totale" & `Qualifica contrattuale`=="totale"'
+                                    )[['Ateco 2007','Ateco 2007 BR','TIME','Value']]
 
 
 # ### Plot horizontal bar chart for sectors
@@ -994,7 +997,9 @@ for k in range(len(fig.frames)):
 fig.layout.updatemenus[0].buttons[0].args[1]['frame']['duration'] = animation_duration_frame
 
 if exportFigure: 
-    fig.write_html(f"{figureOutputFolder_this}/barChartSectors.html")
+    # fig.write_html(f"{figureOutputFolder_this}/index.html")
+    with open(f"{figureOutputFolder_this}/index.html", "w") as html_file:
+        html_file.write(f"<!DOCTYPE html>\n{fig.to_html()}")
     del figureOutputFolder_this
 
 
