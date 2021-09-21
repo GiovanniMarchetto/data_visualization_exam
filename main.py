@@ -607,7 +607,9 @@ fig = createFigure(df_province, geoJsonData)
 
 # Export the figure
 if exportFigure:
-    fig.write_html(f"{figureOutputFolder_this}/geoMapSlider.html")
+    # fig.write_html(f"{figureOutputFolder_this}/index.html")
+    with open(f"{figureOutputFolder_this}/index.html", "w") as html_file:
+        html_file.write(f"<!DOCTYPE html>\n{fig.to_html()}")
 
 
 # Re-load data and load uncompressed geodata
@@ -842,8 +844,8 @@ print("Percentage increment of gender gap wrt. 2014: " + str(gapPercentageWrtFir
 print("\n\n## Question 3: What are the most profitable sectors? ##")
 
 df_sectors_tot = df_sectors.query('Sesso=="totale" & `Classe di età`=="totale" &  \
-                                  `Classe di dipendenti`=="totale" & `Qualifica contrattuale`=="totale"'
-                            )[['Ateco 2007','Ateco 2007 BR','TIME','Value']]
+                                    `Classe di dipendenti`=="totale" & `Qualifica contrattuale`=="totale"'
+                                    )[['Ateco 2007','Ateco 2007 BR','TIME','Value']]
 
 
 # ### Plot horizontal bar chart for sectors
@@ -994,7 +996,9 @@ for k in range(len(fig.frames)):
 fig.layout.updatemenus[0].buttons[0].args[1]['frame']['duration'] = animation_duration_frame
 
 if exportFigure: 
-    fig.write_html(f"{figureOutputFolder_this}/barChartSectors.html")
+    # fig.write_html(f"{figureOutputFolder_this}/index.html")
+    with open(f"{figureOutputFolder_this}/index.html", "w") as html_file:
+        html_file.write(f"<!DOCTYPE html>\n{fig.to_html()}")
     del figureOutputFolder_this
 
 
