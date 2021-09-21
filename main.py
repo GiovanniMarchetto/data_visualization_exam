@@ -462,7 +462,7 @@ def loadDataMultipleYears(provinceNames=[], years=[], compress=-1, simplify=-1):
     df_province = getProvinceSalaryvalue()
 
     if(len(years)>0):   # filter according to years
-        df_province = df_province.query(' | '.join({f"(TIME=={year})" for year in years}))
+        df_province = df_province.query(' | '.join({f"(TIME=={year})" for year in years})).copy()
         map_df = {year: map_df[year] for year in years}
     else:
         years = map_df.keys()
@@ -475,7 +475,9 @@ def loadDataMultipleYears(provinceNames=[], years=[], compress=-1, simplify=-1):
     for year in years:
         # Percentage increment (I) for a province wrt. national average value (A):      V = A + I/100*A ,   V=value in the province, ==> I = 100(V/A-1)  [%]
         nationalAvgSalary = avgSalary(year=year)
-        df_province.loc[df_province.TIME==year, "Salary wrt. national average [%]"] = round(100*(df_province.loc[df_province.TIME==year,'Value']/nationalAvgSalary-1), 2)
+        tmp = round(100*(df_province.loc[df_province.TIME==year,'Value']/nationalAvgSalary-1), 2)
+        df_province.loc[df_province.TIME==year, "Salary wrt. national average [%]"] = tmp
+        del tmp
 
     # Format the percentage salary
     df_province["Salary wrt. national average [%]"] = df_province["Salary wrt. national average [%]"].map('{:+.2f} %'.format)   # Same as: # df_province["Salary wrt. national average [%]"] = df_province["Salary wrt. national average [%]"].map(lambda val: ('+' if val>0 else '') + str(val))
@@ -484,7 +486,7 @@ def loadDataMultipleYears(provinceNames=[], years=[], compress=-1, simplify=-1):
     df_province["Value2"] = df_province["Value"].map('{:.2f} €/h'.format)
 
     # Union over years of geodata and conversion of coordinates
-    geoData = pd.concat(tuple(convertCrsToLatLong(map_df[year]) for year in years))
+    geoData = pd.concat(tuple(convertCrsToLatLong(map_df[year].copy()) for year in years))
 
     # Compression of geo data (from: https://gis.stackexchange.com/a/321531)
     if compress>=0:
