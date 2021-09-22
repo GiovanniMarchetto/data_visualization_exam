@@ -38,7 +38,7 @@ colors_palette = ['#003a2b','#249e89','#f5f5f5','#d86e58','#6a0000']
 animation_duration_frame = 1000         # millisecs
 animation_duration_transition = 100     # millisecs
 
-exportFigure = False    # set to true if you want to export the figure
+exportFigure = True    # set to true if you want to export the figure
 
 
 
@@ -360,7 +360,8 @@ def avgSalary(territory='Italia', year=-1):
     If the year is not specified, the average value is computed over all the years which
     are available.
     '''
-    query = f"Territorio=='{territory}' & Sesso=='totale' & `Classe di età`=='totale' & `Qualifica contrattuale`=='totale' & `Classe di dipendenti`=='totale'" + (f" & TIME=={year}" if year!=-1 else "")
+    query = f"Territorio=='{territory}' & Sesso=='totale' & `Classe di età`=='totale' & `Qualifica contrattuale`=='totale' & `Classe di dipendenti`=='totale'"   \
+        + (f" & TIME=={year}" if year!=-1 else "")
     return round(100*getDataAboutTerritory().query(query)['Value'].mean())/100  # round(100*..)/100 is used to have two decimal digits
 
 
@@ -874,6 +875,11 @@ df_sectors_tot = df_sectors.query('Sesso=="totale" & `Classe di età`=="totale" 
                                     `Classe di dipendenti`=="totale" & `Qualifica contrattuale`=="totale"'
                                     )[['Ateco 2007','Ateco 2007 BR','TIME','Value']]
 
+df_sectors_avg = df2.query('`Ateco 2007`=="TOTALE" & Territorio=="Italia" \
+                            & Sesso=="totale" & `Classe di età`=="totale" & \
+                            `Classe di dipendenti`=="totale" & `Qualifica contrattuale`=="totale" '
+                        )[['TIME','Value']]
+
 
 # ### Plot horizontal bar chart for sectors
 
@@ -919,16 +925,16 @@ for year in range(2014,2018,1):
     fig.update_xaxes(title_font_family=default_font_family)
     fig.update_yaxes(title_font_family=default_font_family)
 
-    avg = round(np.average(tmp["Value"]),2)
+    avg = df_sectors_avg.query(f'TIME=={year}')['Value'].to_list()
     fig.add_shape(
         type="line",
-        x0=avg, y0=-0.5, x1=avg, y1=4.5,
+        x0=avg[0], y0=-0.5, x1=avg[0], y1=4.5,
         line=dict(color="grey",width=2),
         opacity=0.5, layer="below"
     )
     fig.add_annotation(
-        x=avg, y=4.9,
-        text="Average<br>{avg}",
+        x=avg[0], y=4.9,
+        text=f"Average<br>{avg[0]}",
         font=dict(family=default_font_family,size=12,color="grey"),
         showarrow=False
     )
@@ -948,8 +954,7 @@ for year in years:
     tmp = df_sectors_tot.query(f'TIME=={year}').sort_values(by='Value',ascending=False)
     df_new = df_new.append(tmp.head(howMany))
 
-    if year==2014:
-        avg_2014 = round(np.average(tmp["Value"]),2)
+avg = df_sectors_avg.sort_values(by='TIME')['Value'].to_list()
 
 df_new = df_new.sort_values(by=['TIME','Value']).reset_index(drop=True)
 
@@ -976,8 +981,8 @@ fig.update_layout(
     showlegend=False,
     annotations = [
         dict(
-            x=avg_2014, y=4.9,
-            text=f"Average<br>{avg_2014}",
+            x=avg[0], y=4.9,
+            text=f"Average<br>{avg[0]}",
             font=dict(family=default_font_family,size=12,color="grey"),
             showarrow=False
         )
@@ -985,7 +990,7 @@ fig.update_layout(
     shapes = [
         dict(
             type="line",
-            x0=avg_2014, y0=-0.5, x1=avg_2014, y1=4.5,
+            x0=avg[0], y0=-0.5, x1=avg[0], y1=4.5,
             line=dict(color="grey",width=2),
             opacity=0.5, layer="below"
         )
@@ -999,12 +1004,11 @@ for step in fig.layout.sliders[0].steps:
 
 for k in range(len(fig.frames)):
     tmp = df_sectors_tot.query(f'TIME=={2014+k}')
-    avg = round(np.average(tmp["Value"]),2)
 
     annotation = [
         dict(
-            x=avg, y=4.9,
-            text=f"Average<br>{avg}",
+            x=avg[k], y=4.9,
+            text=f"Average<br>{avg[k]}",
             font=dict(family=default_font_family,size=12,color="grey"),
             showarrow=False
         )
@@ -1012,7 +1016,7 @@ for k in range(len(fig.frames)):
     shape = [
         dict(
             type="line",
-            x0=avg, y0=-0.5, x1=avg, y1=4.5,
+            x0=avg[k], y0=-0.5, x1=avg[k], y1=4.5,
             line=dict(color="grey",width=2),
             opacity=0.5, layer="below"
         )
