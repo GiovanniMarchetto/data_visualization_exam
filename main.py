@@ -785,7 +785,7 @@ fig.update_layout(annotations=annotations)
 
 fig.update_layout(
     xaxis_title="Year",
-    yaxis_title="Gross salary [€/h]",
+    yaxis_title="Average gross salary [€/h]",
     xaxis=dict( showgrid=False,showline=True, showticklabels=True, ticks='outside',
         linecolor='rgb(204, 204, 204)', linewidth=2, dtick = 1),
     yaxis=dict( showgrid=False,showline=True, showticklabels=True, ticks='outside', 
@@ -910,7 +910,7 @@ for year in range(2014,2018,1):
         hoverlabel=dict(font_family=default_font_family),
         #title_text=f'{year}',
         yaxis_title=None,
-        xaxis_title="Gross salary [€/h]",
+        xaxis_title="Average gross salary [€/h]",
         xaxis=dict(showline=True, showticklabels=True, ticks='outside',
             linecolor='rgb(204, 204, 204)', linewidth=2, dtick = 5,
             range = [0, val_x_axis]),
@@ -969,7 +969,7 @@ fig.update_layout(
     hoverlabel=dict(font_family=default_font_family),
     #title_text=f'{year}',
     yaxis_title=None,
-    xaxis_title="Gross salary [€/h]",
+    xaxis_title="Average gross salary [€/h]",
     xaxis=dict(showline=True, showticklabels=True, ticks='outside',
                 linecolor='rgb(204, 204, 204)', linewidth=2, dtick = 5,
                 range = [0, val_x_axis]),
