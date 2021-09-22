@@ -920,7 +920,7 @@ for year in range(2014,2018,1):
         font=dict(family=default_font_family,size=12,color="grey"),
         title_font_family=default_font_family,
         showlegend=False,
-        width=800, height=350
+        width=800, height=387
     )
     fig.update_xaxes(title_font_family=default_font_family)
     fig.update_yaxes(title_font_family=default_font_family)
