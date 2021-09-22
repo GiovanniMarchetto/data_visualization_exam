@@ -599,7 +599,8 @@ if exportFigure:
 
     # Edit html to correctly position the annotation
     figureOutputFolder_this = figureOutputFolder + '/question1'
-    html = fig.to_html(f"{figureOutputFolder_this}/geoMapSlider.html")
+    htmlFileName = figureOutputFolder_this + '/index.html'
+    html = fig.to_html(htmlFileName)
     html = html.replace('<body>','<body onload="(                                                                                           \n\
         function() {                                                                                                                        \n\
             var legendEl = document.getElementsByClassName(\'legend\')[0];          /* the legend     (HTML elem) */                        \n\
@@ -624,15 +625,18 @@ if exportFigure:
                                                                                                                                             \n\
             var timer;                                                                                                                      \n\
             var timerTime = 100; /* millisecs*/                                                                                             \n\
-            clearTimeout(timer);                                                                                                            \n\
-            timer = setTimeout(moveAnnotation,timerTime);                                                                                   \n\
+            var moveAnnotationOnResizeFun = function() {                                                                                    \n\
+                clearTimeout(timer);                                                                                                        \n\
+                timer = setTimeout(moveAnnotation,timerTime);                                                                               \n\
+            }                                                                                                                               \n\
                                                                                                                                             \n\
             moveAnnotation(); /*Execute when body is loaded*/                                                                               \n\
             body.appendChild(annotationEl);                                                                                                 \n\
-            window.onresize = moveAnnotation;/*Execute each time the window resizes (because legend moves according to the window size)*/   \n\
+            window.onresize = moveAnnotationOnResizeFun; /*Execute each time the window resizes                                               \
+                                                           (because legend moves according to the window size)*/                            \n\
         })()"'
     )
-    with open(f"{figureOutputFolder_this}/index.html", "w") as html_file:
+    with open(htmlFileName,'w') as html_file:
         html_file.write(f"<!DOCTYPE html>\n{html}")
 
     
