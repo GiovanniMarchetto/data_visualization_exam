@@ -1032,7 +1032,52 @@ if exportFigure:
         html_file.write(f"<!DOCTYPE html>\n{fig.to_html()}")
     del figureOutputFolder_this
 
+# ## Question 3
+# In[ ]:
 
+colors_enp = []
+
+for c in range(5,18):
+  colors_enp.append("lightgrey")
+for c in range(0,5):
+  colors_enp.append(colors_palette[1])
+
+if exportFigure:
+    figureOutputFolder_this = figureOutputFolder + '/question3'
+    if os.path.exists(figureOutputFolder_this): # remove old data
+        sh.rmtree(figureOutputFolder_this)
+    os.makedirs(figureOutputFolder_this)
+
+for year in range(2014,2018,1):
+  tmp = df_sectors_tot.query(f'TIME=={year}').sort_values(by='Value')
+
+  fig = px.bar(tmp, x="Value", y="Ateco 2007", text="Value")
+
+  fig.update_traces(texttemplate='%{text:.2f} ', textposition='inside')
+  fig.update_traces(marker_color= colors_enp, opacity=0.8)
+  fig.update_layout(        
+    hoverlabel=dict(font_family=default_font_family),
+    #title_text=f'{year}',
+    yaxis_title=None,
+    xaxis_title="Gross salary [€/h]",
+    xaxis=dict(showline=True, showticklabels=True, ticks='outside',
+      linecolor='rgb(204, 204, 204)', linewidth=2, dtick = 5,
+      range = [0, val_x_axis]),
+    yaxis=dict( showgrid=False, showline=False, ticksuffix='  '),
+    paper_bgcolor='white',
+    plot_bgcolor='white',
+    font=dict(family=default_font_family,size=12,color="grey"),
+    title_font_family=default_font_family,
+    showlegend=False,
+  )
+  fig.update_xaxes(title_font_family=default_font_family)
+  fig.update_yaxes(title_font_family=default_font_family)
+  
+  fig.show()
+
+  # Export images
+  if exportFigure:
+    fig.write_image(f"{figureOutputFolder_this}/barChartSectorsAll{year}.svg")
 
 endTime = time.time_ns()
 print("\n\nTime elapsed: " + str((endTime-startTime)/1000000) + " ms")
