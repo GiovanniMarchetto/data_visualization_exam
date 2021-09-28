@@ -181,6 +181,12 @@ df_sectors = df_sectors.query('`ATECO_2007`>="A" & `ATECO_2007`<="Z"').drop(['Te
 # choose granularity of territory
 df_territory = df2.query('`Ateco 2007`=="TOTALE"').drop(['Ateco 2007'], axis=1)
 
+# avg
+df_avg = df2.query('`Ateco 2007`=="TOTALE" & Territorio=="Italia" \
+                            & Sesso=="totale" & `Classe di età`=="totale" & \
+                            `Classe di dipendenti`=="totale" & `Qualifica contrattuale`=="totale" '
+                        )[['TIME','Value']]
+avg = df_avg.sort_values(by='TIME')['Value'].to_list()
 
 # In[ ]:
 
@@ -554,6 +560,43 @@ def createFigure(dataframe, geoJsonData):
         title_font_family=default_font_family,
         legend_itemsizing='trace'               # Determines if the legend items symbols scale with their corresponding "trace" attributes or remain "constant" independent of the symbol size on the graph. # TODO: NOT working
     )
+    fig.add_annotation(
+        xref="x domain",
+        yref="y",
+        x=0.75,
+        y=1,
+        text="An annotation whose text and arrowhead reference the axes and the data",
+        # If axref is exactly the same as xref, then the text's position is
+        # absolute and specified in the same coordinates as xref.
+        axref="x domain",
+        # The same is the case for yref and ayref, but here the coordinates are data
+        # coordinates
+        ayref="y",
+        ax=0.5,
+        ay=2,
+        arrowhead=2,
+    )
+
+    if showAnimationFlag:
+        for step in fig.layout.sliders[0].steps:
+            step["args"][1]["frame"]["redraw"] = True
+
+        for k in range(len(fig.frames)):
+
+            annotation = [
+                dict(
+                        xref="paper",
+                        yref="paper",
+                        x=0.75,
+                        y=1,
+                        text=f"Average<br>{avg[k]} €/h",
+                        font=dict(family=default_font_family,size=12,color="grey"),
+                        showarrow=False
+                )
+            ]
+
+            fig.frames[k]['layout'].update(annotations=annotation)
+
 
     fig.update_geos(showcountries=False, showcoastlines=False, showland=False, fitbounds="locations")
 
@@ -876,11 +919,6 @@ df_sectors_tot = df_sectors.query('Sesso=="totale" & `Classe di età`=="totale" 
                                     `Classe di dipendenti`=="totale" & `Qualifica contrattuale`=="totale"'
                                     )[['Ateco 2007','Ateco 2007 BR','TIME','Value']]
 
-df_sectors_avg = df2.query('`Ateco 2007`=="TOTALE" & Territorio=="Italia" \
-                            & Sesso=="totale" & `Classe di età`=="totale" & \
-                            `Classe di dipendenti`=="totale" & `Qualifica contrattuale`=="totale" '
-                        )[['TIME','Value']]
-
 
 # ### Plot horizontal bar chart for sectors
 
@@ -927,7 +965,7 @@ for year in range(2014,2018,1):
     fig.update_xaxes(title_font_family=default_font_family)
     fig.update_yaxes(title_font_family=default_font_family)
 
-    avg = df_sectors_avg.query(f'TIME=={year}')['Value'].to_list()
+    avg = df_avg.query(f'TIME=={year}')['Value'].to_list()
     fig.add_shape(
         type="line",
         x0=avg[0], y0=-0.5, x1=avg[0], y1=4.5,
@@ -956,7 +994,7 @@ for year in years:
     tmp = df_sectors_tot.query(f'TIME=={year}').sort_values(by='Value',ascending=False)
     df_new = df_new.append(tmp.head(howMany))
 
-avg = df_sectors_avg.sort_values(by='TIME')['Value'].to_list()
+avg = df_avg.sort_values(by='TIME')['Value'].to_list()
 
 df_new = df_new.sort_values(by=['TIME','Value']).reset_index(drop=True)
 
