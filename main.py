@@ -1030,10 +1030,8 @@ for k in range(len(fig.frames)):
 fig.layout.updatemenus[0].buttons[0].args[1]['frame']['duration'] = animation_duration_frame
 
 if exportFigure: 
-    # fig.write_html(f"{figureOutputFolder_this}/index.html")
     with open(f"{figureOutputFolder_this}/index.html", "w") as html_file:
         html_file.write(f"<!DOCTYPE html>\n{fig.to_html()}")
-    del figureOutputFolder_this
 
 # ## Question 3 Alernative
 # In[ ]:
@@ -1044,12 +1042,6 @@ for c in range(5,18):
   colors_enp.append("lightgrey")
 for c in range(0,5):
   colors_enp.append(colors_palette[1])
-
-if exportFigure:
-    figureOutputFolder_this = figureOutputFolder + '/question3'
-    if os.path.exists(figureOutputFolder_this): # remove old data
-        sh.rmtree(figureOutputFolder_this)
-    os.makedirs(figureOutputFolder_this)
 
 for year in range(2014,2018,1):
   tmp = df_sectors_tot.query(f'TIME=={year}').sort_values(by='Value')
@@ -1082,6 +1074,9 @@ for year in range(2014,2018,1):
   # Export images
   if exportFigure:
     fig.write_image(f"{figureOutputFolder_this}/barChartSectorsAll{year}.svg")
+
+if exportFigure:
+    del figureOutputFolder_this
 
 endTime = time.time_ns()
 print("\n\nTime elapsed: " + str((endTime-startTime)/1000000) + " ms")
