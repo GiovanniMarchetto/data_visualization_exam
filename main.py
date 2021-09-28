@@ -35,10 +35,10 @@ default_font_family = "Bahnschrift Light"
 colors_palette = ['#003a2b','#249e89','#f5f5f5','#d86e58','#6a0000']
 
 # for animations
-animation_duration_frame = 1000         # millisecs
+animation_duration_frame = 1500         # millisecs
 animation_duration_transition = 100     # millisecs
 
-exportFigure = False    # set to true if you want to export the figure
+exportFigure = True    # set to true if you want to export the figure
 
 
 
@@ -1106,8 +1106,6 @@ for year in range(2014,2018,1):
   )
   fig.update_xaxes(title_font_family=default_font_family)
   fig.update_yaxes(title_font_family=default_font_family)
-  
-  fig.show()
 
   # Export images
   if exportFigure:
