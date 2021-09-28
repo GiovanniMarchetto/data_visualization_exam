@@ -38,7 +38,7 @@ colors_palette = ['#003a2b','#249e89','#f5f5f5','#d86e58','#6a0000']
 animation_duration_frame = 1000         # millisecs
 animation_duration_transition = 100     # millisecs
 
-exportFigure = True    # set to true if you want to export the figure
+exportFigure = False    # set to true if you want to export the figure
 
 
 
@@ -589,7 +589,7 @@ def createFigure(dataframe, geoJsonData):
                         yref="paper",
                         x=0.75,
                         y=1,
-                        text=f"Average<br>{avg[k]} €/h",
+                        text=f"Average<br>%.2f €/h" % avg[k],
                         font=dict(family=default_font_family,size=12,color="grey"),
                         showarrow=False
                 )
@@ -974,7 +974,7 @@ for year in range(2014,2018,1):
     )
     fig.add_annotation(
         x=avg[0], y=4.9,
-        text=f"Average<br>{avg[0]}",
+        text=f"Average<br>%.2f" % avg[0],
         font=dict(family=default_font_family,size=12,color="grey"),
         showarrow=False
     )
@@ -1023,7 +1023,7 @@ fig.update_layout(
     annotations = [
         dict(
             x=avg[0], y=4.9,
-            text=f"Average<br>{avg[0]}",
+            text=f"Average<br>%.2f" % avg[0],
             font=dict(family=default_font_family,size=12,color="grey"),
             showarrow=False
         )
@@ -1049,7 +1049,7 @@ for k in range(len(fig.frames)):
     annotation = [
         dict(
             x=avg[k], y=4.9,
-            text=f"Average<br>{avg[k]}",
+            text=f"Average<br>%.2f" % avg[k],
             font=dict(family=default_font_family,size=12,color="grey"),
             showarrow=False
         )
