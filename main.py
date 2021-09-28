@@ -527,7 +527,7 @@ def createFigure(dataframe, geoJsonData):
 
     colorLabel = 'SalaryCategory2' if showAnimationFlag else 'SalaryCategory'
     fig = px.choropleth(
-        # title=None, title='Salaries in private companies',
+        title='Salaries in Italian private companies are higher in the North',
         data_frame=dataframe, 
         geojson=geoJsonData, 
         locations='TerritorioAnno',               # name of dataframe column
@@ -550,6 +550,7 @@ def createFigure(dataframe, geoJsonData):
         plot_bgcolor='white',
         font=dict(color='dimgray', family=default_font_family),
         # margin={"r":0,"t":0,"l":0,"b":0},
+        title_font_size=20,
         title_font_family=default_font_family,
         legend_itemsizing='trace'               # Determines if the legend items symbols scale with their corresponding "trace" attributes or remain "constant" independent of the symbol size on the graph. # TODO: NOT working
     )
@@ -908,7 +909,8 @@ for year in range(2014,2018,1):
     fig.update_traces(marker_color= colors_palette[1], opacity=0.8)
     fig.update_layout(
         hoverlabel=dict(font_family=default_font_family),
-        #title_text=f'{year}',
+        title_text='Top 5 sectors ranking',
+        title_font_size=20,
         yaxis_title=None,
         xaxis_title="Average gross salary [€/h]",
         xaxis=dict(showline=True, showticklabels=True, ticks='outside',
@@ -967,7 +969,8 @@ fig.update_traces(texttemplate='%{text:.2f} ', textposition='inside')
 
 fig.update_layout(        
     hoverlabel=dict(font_family=default_font_family),
-    #title_text=f'{year}',
+    title_text='Top 5 sectors ranking',
+    title_font_size=20,
     yaxis_title=None,
     xaxis_title="Average gross salary [€/h]",
     xaxis=dict(showline=True, showticklabels=True, ticks='outside',
@@ -1032,7 +1035,7 @@ if exportFigure:
         html_file.write(f"<!DOCTYPE html>\n{fig.to_html()}")
     del figureOutputFolder_this
 
-# ## Question 3
+# ## Question 3 Alernative
 # In[ ]:
 
 colors_enp = []
@@ -1057,7 +1060,8 @@ for year in range(2014,2018,1):
   fig.update_traces(marker_color= colors_enp, opacity=0.8)
   fig.update_layout(        
     hoverlabel=dict(font_family=default_font_family),
-    #title_text=f'{year}',
+    title_text='Top 5 sectors ranking',
+    title_font_size=20,
     yaxis_title=None,
     xaxis_title="Gross salary [€/h]",
     xaxis=dict(showline=True, showticklabels=True, ticks='outside',
